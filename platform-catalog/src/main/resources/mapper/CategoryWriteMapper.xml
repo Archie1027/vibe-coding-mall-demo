@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.catalog.CategoryWriteMapper">
+  <select id="lockAnchor" resultType="string">
+    SELECT CAST(id AS CHAR) FROM category ORDER BY id LIMIT 1 FOR UPDATE
+  </select>
+  <select id="tree" resultType="com.zhicai.platform.catalog.CatalogModels$Category">
+    SELECT CAST(id AS CHAR) id,name,CAST(parent_id AS CHAR) parentId,sort_order sort,enabled,version FROM category ORDER BY id
+  </select>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO category(name,parent_id,sort_order,enabled) VALUES(#{name},CAST(#{parentId,jdbcType=VARCHAR} AS UNSIGNED),#{sort},#{enabled})
+  </insert>
+  <update id="update">
+    UPDATE category SET name=#{name},parent_id=CAST(#{parentId,jdbcType=VARCHAR} AS UNSIGNED),sort_order=#{sort},enabled=#{enabled},version=version+1,updated_at=UTC_TIMESTAMP(3)
+    WHERE id=CAST(#{id} AS UNSIGNED) AND version=#{version}
+  </update>
+</mapper>

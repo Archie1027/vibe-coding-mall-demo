@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.inventory.InventoryAvailabilityMapper">
+  <select id="warehouses" resultType="com.zhicai.platform.inventory.StockPolicy$Warehouse">
+    SELECT CAST(id AS CHAR) id,priority,enabled,fulfillment_enabled fulfillmentEnabled
+    FROM warehouse WHERE enabled=TRUE AND fulfillment_enabled=TRUE ORDER BY priority,id
+  </select>
+  <select id="balances" resultType="com.zhicai.platform.inventory.StockPolicy$Balance">
+    SELECT CAST(warehouse_id AS CHAR) warehouseId,CAST(sku_id AS CHAR) skuId,on_hand onHand,reserved,quarantine
+    FROM stock_balance WHERE warehouse_id IN
+    <foreach collection="warehouseIds" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+      AND sku_id IN <foreach collection="skuIds" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY warehouse_id,sku_id
+  </select>
+</mapper>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.trade.CartMapper">
+  <sql id="columns">CAST(id AS CHAR) id,CAST(sku_id AS CHAR) skuId,quantity,selected</sql>
+  <select id="list" resultType="com.zhicai.platform.trade.CartMapper$Row">
+    SELECT <include refid="columns"/> FROM cart_item WHERE customer_id=CAST(#{owner} AS UNSIGNED) ORDER BY id DESC LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="count" resultType="long">SELECT COUNT(*) FROM cart_item WHERE customer_id=CAST(#{owner} AS UNSIGNED)</select>
+  <select id="find" resultType="com.zhicai.platform.trade.CartMapper$Row">
+    SELECT <include refid="columns"/> FROM cart_item WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND id=CAST(#{id} AS UNSIGNED)
+  </select>
+  <select id="findBySku" resultType="com.zhicai.platform.trade.CartMapper$Row">
+    SELECT <include refid="columns"/> FROM cart_item WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND sku_id=CAST(#{skuId} AS UNSIGNED)
+  </select>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO cart_item(customer_id,sku_id,quantity,selected) VALUES(CAST(#{owner} AS UNSIGNED),CAST(#{skuId} AS UNSIGNED),#{quantity},TRUE)
+  </insert>
+  <update id="update">
+    UPDATE cart_item SET quantity=#{quantity},selected=#{selected},updated_at=UTC_TIMESTAMP(3)
+    WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND id=CAST(#{id} AS UNSIGNED)
+  </update>
+  <delete id="delete">DELETE FROM cart_item WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND id=CAST(#{id} AS UNSIGNED)</delete>
+</mapper>

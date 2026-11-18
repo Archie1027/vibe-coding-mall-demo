@@ -1,0 +1,20 @@
+{
+  "name": "zhicai-web",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "web-storefront",
+    "web-admin",
+    "web-shared"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev:storefront": "npm run dev -w web-storefront",
+    "dev:admin": "npm run dev -w web-admin",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:web": "node --test web-shared/tests/*.test.ts"
+  }
+}

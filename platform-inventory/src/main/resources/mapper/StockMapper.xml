@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.inventory.StockMapper">
+  <select id="lockWarehouse" resultType="com.zhicai.platform.inventory.StockMapper$Warehouse">
+    SELECT CAST(id AS CHAR) id,enabled,fulfillment_enabled fulfillmentEnabled
+    FROM warehouse WHERE id=CAST(#{warehouseId} AS UNSIGNED) FOR SHARE
+  </select>
+  <select id="lockBalance" resultType="com.zhicai.platform.inventory.StockMapper$Balance">
+    SELECT CAST(id AS CHAR) id,CAST(warehouse_id AS CHAR) warehouseId,CAST(sku_id AS CHAR) skuId,
+      on_hand onHand,reserved,quarantine,version
+    FROM stock_balance WHERE warehouse_id=CAST(#{warehouseId} AS UNSIGNED) AND sku_id=CAST(#{skuId} AS UNSIGNED) FOR UPDATE
+  </select>
+  <select id="lockReservation" resultType="com.zhicai.platform.inventory.StockMapper$Reservation">
+    SELECT CAST(id AS CHAR) id,CAST(business_line_id AS CHAR) businessLineId,CAST(warehouse_id AS CHAR) warehouseId,
+      CAST(sku_id AS CHAR) skuId,quantity,state,version
+    FROM stock_reservation WHERE business_type='ORDER' AND business_line_id=CAST(#{businessLineId} AS UNSIGNED) FOR UPDATE
+  </select>
+  <select id="reserveEvidence" resultType="com.zhicai.platform.inventory.StockMapper$ReserveEvidence">
+    SELECT CAST(biz_id AS CHAR) businessId,CAST(biz_line_id AS CHAR) businessLineId,CAST(warehouse_id AS CHAR) warehouseId,
+      CAST(sku_id AS CHAR) skuId,delta_reserved quantity
+    FROM stock_ledger WHERE biz_type='ORDER' AND biz_line_id=CAST(#{businessLineId} AS UNSIGNED) AND action='RESERVE'
+    ORDER BY warehouse_id,sku_id,id FOR SHARE
+  </select>
+  <update id="increaseReserved">
+    UPDATE stock_balance SET reserved=reserved+#{quantity},version=version+1,updated_at=UTC_TIMESTAMP(3)
+    WHERE id=CAST(#{id} AS UNSIGNED) AND version=#{version} AND on_hand-reserved &gt;= #{quantity}
+  </update>
+  <update id="decreaseReserved">
+    UPDATE stock_balance SET reserved=reserved-#{quantity},version=version+1,updated_at=UTC_TIMESTAMP(3)
+    WHERE id=CAST(#{id} AS UNSIGNED) AND version=#{version} AND reserved &gt;= #{quantity}
+  </update>
+  <insert id="insertReservation" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO stock_reservation(business_type,business_line_id,warehouse_id,sku_id,quantity,state)
+    VALUES('ORDER',CAST(#{businessLineId} AS UNSIGNED),CAST(#{warehouseId} AS UNSIGNED),CAST(#{skuId} AS UNSIGNED),#{quantity},'HELD')
+  </insert>
+  <update id="markReleased">
+    UPDATE stock_reservation SET state='RELEASED',version=version+1,updated_at=UTC_TIMESTAMP(3)
+    WHERE id=CAST(#{id} AS UNSIGNED) AND business_type='ORDER' AND state='HELD' AND version=#{version}
+  </update>
+  <insert id="insertLedger">
+    INSERT INTO stock_ledger(biz_type,biz_id,biz_line_id,action,warehouse_id,sku_id,
+      on_hand_before,reserved_before,quarantine_before,in_transit_before,
+      delta_on_hand,delta_reserved,delta_quarantine,delta_in_transit,
+      on_hand_after,reserved_after,quarantine_after,in_transit_after,actor_id,trace_id)
+    VALUES('ORDER',CAST(#{businessId} AS UNSIGNED),CAST(#{businessLineId} AS UNSIGNED),#{action},
+      CAST(#{warehouseId} AS UNSIGNED),CAST(#{skuId} AS UNSIGNED),
+      #{onHand},#{reservedBefore},#{quarantine},0,0,#{deltaReserved},0,0,
+      #{onHand},#{reservedBefore}+#{deltaReserved},#{quarantine},0,CAST(#{actorId,jdbcType=VARCHAR} AS UNSIGNED),#{traceId})
+  </insert>
+</mapper>

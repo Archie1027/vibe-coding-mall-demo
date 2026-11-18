@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.trade.AddressMapper">
+  <sql id="columns">CAST(id AS CHAR) id,recipient,phone,province,city,district,detail,is_default isDefault,version</sql>
+  <select id="list" resultType="com.zhicai.platform.trade.TradeModels$Address">
+    SELECT <include refid="columns"/> FROM customer_address WHERE customer_id=CAST(#{owner} AS UNSIGNED)
+    ORDER BY is_default DESC,id DESC LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="count" resultType="long">SELECT COUNT(*) FROM customer_address WHERE customer_id=CAST(#{owner} AS UNSIGNED)</select>
+  <select id="find" resultType="com.zhicai.platform.trade.TradeModels$Address">
+    SELECT <include refid="columns"/> FROM customer_address WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND id=CAST(#{id} AS UNSIGNED)
+  </select>
+  <select id="findDefault" resultType="com.zhicai.platform.trade.TradeModels$Address">
+    SELECT <include refid="columns"/> FROM customer_address WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND is_default=TRUE
+  </select>
+  <update id="clearDefault">
+    UPDATE customer_address SET is_default=FALSE,version=version+1,updated_at=UTC_TIMESTAMP(3)
+    WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND is_default=TRUE
+    <if test="exceptId != null">AND id != CAST(#{exceptId} AS UNSIGNED)</if>
+  </update>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO customer_address(customer_id,recipient,phone,province,city,district,detail,is_default)
+    VALUES(CAST(#{owner} AS UNSIGNED),#{input.recipient},#{input.phone},#{input.province},#{input.city},#{input.district},#{input.detail},#{input.isDefault})
+  </insert>
+  <update id="update">
+    UPDATE customer_address SET recipient=#{input.recipient},phone=#{input.phone},province=#{input.province},city=#{input.city},
+    district=#{input.district},detail=#{input.detail},is_default=#{input.isDefault},version=version+1,updated_at=UTC_TIMESTAMP(3)
+    WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND id=CAST(#{id} AS UNSIGNED) AND version=#{version}
+  </update>
+  <delete id="delete">DELETE FROM customer_address WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND id=CAST(#{id} AS UNSIGNED)</delete>
+</mapper>

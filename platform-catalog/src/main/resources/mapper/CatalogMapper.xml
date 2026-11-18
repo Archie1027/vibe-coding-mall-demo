@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.catalog.CatalogMapper">
+  <select id="findCartSkus" resultType="com.zhicai.platform.catalog.CatalogMapper$CartSkuRow">
+    SELECT CAST(s.id AS CHAR) skuId,p.name productName,s.specs_json specsJson,CAST(s.price_minor AS CHAR) priceMinor,
+      s.enabled skuEnabled,p.state productState,c.enabled categoryEnabled,b.enabled brandEnabled,
+      (SELECT a.storage_key FROM product_asset pa JOIN asset a ON a.id=pa.asset_id AND a.visibility='PUBLIC'
+       WHERE pa.product_id=p.id ORDER BY pa.sort_order,a.id LIMIT 1) imageKey
+    FROM sku s JOIN product p ON p.id=s.product_id JOIN category c ON c.id=p.category_id JOIN brand b ON b.id=p.brand_id
+    WHERE s.id IN <foreach collection="ids" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach> ORDER BY s.id
+  </select>
+  <sql id="adminNameFilter"><if test="keyword != null">WHERE name LIKE #{keyword} ESCAPE '!'</if></sql>
+  <select id="countAdminCategories" resultType="long">SELECT COUNT(*) FROM category <include refid="adminNameFilter"/></select>
+  <select id="findAdminCategories" resultType="com.zhicai.platform.catalog.CatalogModels$Category">
+    SELECT CAST(id AS CHAR) id, name, CAST(parent_id AS CHAR) parentId, sort_order sort, enabled, version
+    FROM category <include refid="adminNameFilter"/> ORDER BY sort_order, id LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="countAdminBrands" resultType="long">SELECT COUNT(*) FROM brand <include refid="adminNameFilter"/></select>
+  <select id="findAdminBrands" resultType="com.zhicai.platform.catalog.CatalogModels$Brand">
+    SELECT CAST(id AS CHAR) id, name, enabled, version FROM brand <include refid="adminNameFilter"/> ORDER BY id LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="countAdminProducts" resultType="long">SELECT COUNT(*) FROM product <include refid="adminNameFilter"/></select>
+  <select id="findAdminProducts" resultType="com.zhicai.platform.catalog.CatalogMapper$ProductRow">
+    <include refid="productColumns"/> FROM product p
+    <if test="keyword != null">WHERE p.name LIKE #{keyword} ESCAPE '!'</if>
+    ORDER BY p.created_at DESC, p.id DESC LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="findAdminProduct" resultType="com.zhicai.platform.catalog.CatalogMapper$ProductRow">
+    <include refid="productColumns"/> FROM product p WHERE p.id = CAST(#{id} AS UNSIGNED)
+  </select>
+  <select id="findAdminSkus" resultType="com.zhicai.platform.catalog.CatalogMapper$SkuRow">
+    SELECT CAST(id AS CHAR) id, CAST(product_id AS CHAR) productId, code, specs_json specsJson,
+      CAST(price_minor AS CHAR) priceMinor, enabled, version FROM sku WHERE product_id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY product_id, id
+  </select>
+  <select id="countCategories" resultType="long">SELECT COUNT(*) FROM category WHERE enabled = TRUE</select>
+  <select id="findCategories" resultType="com.zhicai.platform.catalog.CatalogModels$Category">
+    SELECT CAST(id AS CHAR) id, name, CAST(parent_id AS CHAR) parentId, sort_order sort, enabled, version
+    FROM category WHERE enabled = TRUE ORDER BY sort_order, id LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="countBrands" resultType="long">SELECT COUNT(*) FROM brand WHERE enabled = TRUE</select>
+  <select id="findBrands" resultType="com.zhicai.platform.catalog.CatalogModels$Brand">
+    SELECT CAST(id AS CHAR) id, name, enabled, version FROM brand WHERE enabled = TRUE ORDER BY id LIMIT #{size} OFFSET #{offset}
+  </select>
+  <sql id="publicProducts">
+    FROM product p JOIN category c ON c.id = p.category_id AND c.enabled = TRUE
+    JOIN brand b ON b.id = p.brand_id AND b.enabled = TRUE
+    JOIN (SELECT product_id, MIN(price_minor) min_price FROM sku WHERE enabled = TRUE GROUP BY product_id) sp ON sp.product_id = p.id
+    WHERE p.state = 'ON_SALE'
+    <if test="filter.keyword != null">AND p.name LIKE #{filter.keyword} ESCAPE '!'</if>
+    <if test="filter.categoryId != null">AND p.category_id = CAST(#{filter.categoryId} AS UNSIGNED)</if>
+    <if test="filter.brandId != null">AND p.brand_id = CAST(#{filter.brandId} AS UNSIGNED)</if>
+    <if test="filter.minPriceMinor != null">AND sp.min_price &gt;= CAST(#{filter.minPriceMinor} AS UNSIGNED)</if>
+    <if test="filter.maxPriceMinor != null">AND sp.min_price &lt;= CAST(#{filter.maxPriceMinor} AS UNSIGNED)</if>
+    <if test="filter.featured != null">AND p.featured = #{filter.featured}</if>
+  </sql>
+  <sql id="productColumns">
+    SELECT CAST(p.id AS CHAR) id, p.name, CAST(p.category_id AS CHAR) categoryId,
+      CAST(p.brand_id AS CHAR) brandId, p.description, p.featured, p.state,
+      p.rating_sum ratingSum, p.rating_count ratingCount, p.version, p.created_at createdAt
+  </sql>
+  <select id="countProducts" resultType="long">
+    SELECT COUNT(*) <include refid="publicProducts"/>
+  </select>
+  <select id="findProducts" resultType="com.zhicai.platform.catalog.CatalogMapper$ProductRow">
+    <include refid="productColumns"/> <include refid="publicProducts"/>
+    <choose>
+      <when test="filter.sort == 'PRICE_ASC'">ORDER BY sp.min_price ASC, p.id ASC</when>
+      <when test="filter.sort == 'PRICE_DESC'">ORDER BY sp.min_price DESC, p.id ASC</when>
+      <otherwise>ORDER BY p.created_at DESC, p.id DESC</otherwise>
+    </choose>
+    LIMIT #{filter.size} OFFSET #{filter.offset}
+  </select>
+  <select id="findProduct" resultType="com.zhicai.platform.catalog.CatalogMapper$ProductRow">
+    <include refid="productColumns"/>
+    FROM product p JOIN category c ON c.id = p.category_id AND c.enabled = TRUE
+    JOIN brand b ON b.id = p.brand_id AND b.enabled = TRUE
+    WHERE p.id = CAST(#{id} AS UNSIGNED) AND p.state = 'ON_SALE'
+      AND EXISTS (SELECT 1 FROM sku s WHERE s.product_id = p.id AND s.enabled = TRUE)
+  </select>
+  <select id="findSkus" resultType="com.zhicai.platform.catalog.CatalogMapper$SkuRow">
+    SELECT CAST(id AS CHAR) id, CAST(product_id AS CHAR) productId, code, specs_json specsJson,
+      CAST(price_minor AS CHAR) priceMinor, enabled, version FROM sku
+    WHERE enabled = TRUE AND product_id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY product_id, id
+  </select>
+  <select id="findAssets" resultType="com.zhicai.platform.catalog.CatalogMapper$AssetRow">
+    SELECT CAST(a.id AS CHAR) id, CAST(pa.product_id AS CHAR) productId, a.storage_key storageKey,
+      a.content_type contentType, a.size_bytes sizeBytes
+    FROM product_asset pa JOIN asset a ON a.id = pa.asset_id AND a.visibility = 'PUBLIC'
+    WHERE pa.product_id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY pa.product_id, pa.sort_order, a.id
+  </select>
+</mapper>

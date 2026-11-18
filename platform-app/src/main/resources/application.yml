@@ -1,0 +1,45 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: zhicai-platform
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      connection-init-sql: SET time_zone = '+00:00'
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      connect-timeout: 2s
+      timeout: 2s
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    clean-disabled: true
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    arg-name-based-constructor-auto-mapping: true
+app:
+  payment:
+    mock-enabled: ${MOCK_PAYMENT_ENABLED:false}
+  order:
+    writes-enabled: ${ORDER_WRITES_ENABLED:false}
+  customer:
+    writes-enabled: ${CUSTOMER_WRITES_ENABLED:false}
+  catalog:
+    asset-base-url: ${CATALOG_ASSET_BASE_URL:http://127.0.0.1:8080/assets/products/}
+    writes-enabled: ${CATALOG_WRITES_ENABLED:false}
+    replay-key: ${CATALOG_REPLAY_KEY:}
+    upload-root: ${CATALOG_UPLOAD_ROOT:}

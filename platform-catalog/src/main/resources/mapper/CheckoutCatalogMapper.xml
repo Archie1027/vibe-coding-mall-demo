@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.catalog.CheckoutCatalogMapper">
+  <select id="findEnabledSkus" resultType="com.zhicai.platform.catalog.CheckoutCatalogMapper$Row">
+    SELECT CAST(s.id AS CHAR) skuId,CAST(p.id AS CHAR) productId,p.name productName,
+      p.description productDescription,p.featured productFeatured,CAST(c.id AS CHAR) categoryId,c.name categoryName,
+      CAST(b.id AS CHAR) brandId,b.name brandName,s.code skuCode,s.specs_json specsJson,CAST(s.price_minor AS CHAR) priceMinor,
+      s.version skuVersion,p.version productVersion,c.version categoryVersion,b.version brandVersion
+    FROM sku s JOIN product p ON p.id=s.product_id JOIN category c ON c.id=p.category_id JOIN brand b ON b.id=p.brand_id
+    WHERE s.enabled = TRUE AND p.state = 'ON_SALE' AND c.enabled = TRUE AND b.enabled = TRUE
+      AND s.id IN <foreach collection="ids" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY s.id
+  </select>
+  <select id="findEnabledSkuProducts" resultType="com.zhicai.platform.catalog.CheckoutCatalogMapper$SkuProductRow">
+    SELECT CAST(s.id AS CHAR) skuId,CAST(s.product_id AS CHAR) productId FROM sku s
+    WHERE s.enabled = TRUE AND s.id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY s.id
+  </select>
+  <select id="lockProduct" resultType="string">
+    SELECT CAST(id AS CHAR) FROM product WHERE id=CAST(#{id} AS UNSIGNED) FOR SHARE
+  </select>
+  <select id="lockCategoryAnchor" resultType="string">
+    SELECT CAST(id AS CHAR) FROM category ORDER BY id LIMIT 1 FOR SHARE
+  </select>
+  <select id="lockEnabledSkus" resultType="com.zhicai.platform.catalog.CheckoutCatalogMapper$Row">
+    SELECT CAST(s.id AS CHAR) skuId,CAST(p.id AS CHAR) productId,p.name productName,
+      p.description productDescription,p.featured productFeatured,CAST(c.id AS CHAR) categoryId,c.name categoryName,
+      CAST(b.id AS CHAR) brandId,b.name brandName,s.code skuCode,s.specs_json specsJson,CAST(s.price_minor AS CHAR) priceMinor,
+      s.version skuVersion,p.version productVersion,c.version categoryVersion,b.version brandVersion
+    FROM sku s JOIN product p ON p.id=s.product_id JOIN category c ON c.id=p.category_id JOIN brand b ON b.id=p.brand_id
+    WHERE s.enabled = TRUE AND p.state = 'ON_SALE' AND c.enabled = TRUE AND b.enabled = TRUE
+      AND s.id IN <foreach collection="ids" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY s.id FOR SHARE
+  </select>
+  <select id="lockPublicImages" resultType="com.zhicai.platform.catalog.CheckoutCatalogMapper$ImageRow">
+    SELECT CAST(pa.product_id AS CHAR) productId,CAST(a.id AS CHAR) assetId,a.storage_key storageKey,
+      a.content_type contentType,a.size_bytes sizeBytes
+    FROM product_asset pa JOIN asset a ON a.id=pa.asset_id
+    WHERE a.visibility='PUBLIC' AND a.size_bytes &lt;= 5242880
+      AND a.content_type IN ('image/jpeg','image/png','image/webp') AND pa.product_id IN
+      <foreach collection="productIds" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY pa.product_id,pa.sort_order,a.id FOR SHARE
+  </select>
+</mapper>

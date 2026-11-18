@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.trade.PaymentClosingMapper">
+  <select id="lockOrder" resultType="java.lang.String">
+    SELECT CAST(id AS CHAR) FROM sales_order WHERE id=CAST(#{id} AS UNSIGNED) FOR UPDATE
+  </select>
+  <!-- Every payment writer must acquire the same order root first. The FK also prevents
+       a new payment row while this exclusive parent lock is held. Never cache these facts. -->
+  <select id="facts" resultType="com.zhicai.platform.trade.PaymentClosingMapper$Facts">
+    SELECT COUNT(*) AS total,
+      COALESCE(SUM(state IN ('CREATED','PROCESSING')),0) AS active,
+      COALESCE(SUM(state='SUCCEEDED'),0) AS succeeded,
+      COALESCE(SUM(state IN ('FAILED','CLOSED')),0) AS terminal
+    FROM payment WHERE order_id=CAST(#{id} AS UNSIGNED)
+  </select>
+</mapper>

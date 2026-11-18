@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.trade.OrderMapper">
+  <select id="lockQuote" resultType="com.zhicai.platform.trade.OrderMapper$LockedQuote">
+    SELECT CAST(id AS CHAR) AS id,CAST(customer_id AS CHAR) AS owner,CAST(warehouse_id AS CHAR) AS warehouseId,
+      snapshot_json AS snapshotJson,expires_at AS expiresAt,CAST(used_order_id AS CHAR) AS usedOrderId,created_at AS createdAt
+    FROM checkout_quote WHERE customer_id = CAST(#{owner} AS UNSIGNED) AND id = CAST(#{quoteId} AS UNSIGNED)
+    FOR UPDATE
+  </select>
+  <insert id="insertOrder" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO sales_order(order_no,quote_id,customer_id,warehouse_id,state,address_snapshot_json,coupon_id,remark,
+      gross_minor,discount_minor,shipping_minor,payable_minor,refunded_minor,expires_at,version,created_at,updated_at)
+    VALUES(#{orderNo},CAST(#{quoteId} AS UNSIGNED),CAST(#{owner} AS UNSIGNED),CAST(#{warehouseId} AS UNSIGNED),'UNPAID',
+      #{addressSnapshotJson},NULL,#{remark,jdbcType=VARCHAR},CAST(#{grossMinor} AS UNSIGNED),CAST(#{discountMinor} AS UNSIGNED),
+      CAST(#{shippingMinor} AS UNSIGNED),CAST(#{payableMinor} AS UNSIGNED),0,#{expiresAt},0,#{createdAt},#{createdAt})
+  </insert>
+  <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO sales_order_item(order_id,line_no,sku_id,product_id,product_name,specs_snapshot_json,image_snapshot_json,
+      quantity,unit_price_minor,gross_minor,discount_minor,payable_minor,returned_quantity,refund_quantity_reserved,refunded_minor,version,created_at)
+    VALUES(CAST(#{orderId} AS UNSIGNED),#{lineNo},CAST(#{skuId} AS UNSIGNED),CAST(#{productId} AS UNSIGNED),#{productName},
+      #{specsSnapshotJson},#{imageSnapshotJson},#{quantity},CAST(#{unitPriceMinor} AS UNSIGNED),CAST(#{grossMinor} AS UNSIGNED),
+      CAST(#{discountMinor} AS UNSIGNED),CAST(#{payableMinor} AS UNSIGNED),0,0,0,0,#{createdAt})
+  </insert>
+  <update id="markQuoteUsed">
+    UPDATE checkout_quote SET used_order_id = CAST(#{orderId} AS UNSIGNED)
+    WHERE customer_id = CAST(#{owner} AS UNSIGNED) AND id = CAST(#{quoteId} AS UNSIGNED)
+      AND used_order_id IS NULL AND expires_at &gt; #{now}
+  </update>
+</mapper>

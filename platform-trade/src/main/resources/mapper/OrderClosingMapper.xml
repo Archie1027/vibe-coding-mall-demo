@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.trade.OrderClosingMapper">
+  <sql id="lockedColumns">
+    CAST(id AS CHAR) AS id,CAST(customer_id AS CHAR) AS owner,CAST(warehouse_id AS CHAR) AS warehouseId,
+    state,CAST(coupon_id AS CHAR) AS couponId,expires_at AS expiresAt,cancelled_at AS cancelledAt,version
+  </sql>
+  <select id="lockOwned" resultType="com.zhicai.platform.trade.OrderClosingMapper$Locked">
+    SELECT <include refid="lockedColumns"/>
+    FROM sales_order WHERE customer_id = CAST(#{owner} AS UNSIGNED) AND id = CAST(#{id} AS UNSIGNED) FOR UPDATE
+  </select>
+  <select id="lockAny" resultType="com.zhicai.platform.trade.OrderClosingMapper$Locked">
+    SELECT <include refid="lockedColumns"/>
+    FROM sales_order WHERE id = CAST(#{id} AS UNSIGNED) FOR UPDATE
+  </select>
+  <select id="items" resultType="com.zhicai.platform.trade.OrderClosingMapper$Item">
+    SELECT CAST(id AS CHAR) AS id,CAST(order_id AS CHAR) AS orderId,CAST(sku_id AS CHAR) AS skuId,quantity,line_no AS lineNo
+    FROM sales_order_item WHERE order_id = CAST(#{orderId} AS UNSIGNED) ORDER BY line_no,id LIMIT 101
+  </select>
+  <update id="markCancelled">
+    UPDATE sales_order SET state='CANCELLED',cancelled_at=#{now},updated_at=#{now},version=version+1
+    WHERE customer_id = CAST(#{owner} AS UNSIGNED) AND id = CAST(#{id} AS UNSIGNED)
+      AND state='UNPAID' AND coupon_id IS NULL AND cancelled_at IS NULL AND version=#{version}
+    <if test="expiredOnly">AND expires_at &lt;= #{now}</if>
+  </update>
+  <select id="expired" resultType="com.zhicai.platform.trade.OrderClosingService$Candidate">
+    SELECT CAST(id AS CHAR) AS id,expires_at AS expiresAt
+    FROM sales_order WHERE state='UNPAID' AND expires_at &lt;= #{cutoff}
+    <if test="afterExpiresAt != null">
+      AND (expires_at &gt; #{afterExpiresAt} OR (expires_at = #{afterExpiresAt} AND id &gt; CAST(#{afterId} AS UNSIGNED)))
+    </if>
+    ORDER BY expires_at,id LIMIT #{limit}
+  </select>
+  <update id="markClosing">
+    UPDATE sales_order SET state='CLOSING',updated_at=#{now},version=version+1
+    WHERE customer_id = CAST(#{owner} AS UNSIGNED) AND id = CAST(#{id} AS UNSIGNED)
+      AND state='UNPAID' AND coupon_id IS NULL AND cancelled_at IS NULL AND version=#{version}
+    <if test="expiredOnly">AND expires_at &lt;= #{now}</if>
+  </update>
+  <update id="markClosingCancelled">
+    UPDATE sales_order SET state='CANCELLED',cancelled_at=#{now},updated_at=#{now},version=version+1
+    WHERE customer_id = CAST(#{owner} AS UNSIGNED) AND id = CAST(#{id} AS UNSIGNED)
+      AND state='CLOSING' AND coupon_id IS NULL AND cancelled_at IS NULL AND version=#{version}
+  </update>
+</mapper>

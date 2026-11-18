@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.identity.IdentityMapper">
+  <sql id="accountColumns">CAST(id AS CHAR) AS id, username, password_hash, display_name, account_type, enabled, version</sql>
+  <select id="findByUsername" resultType="com.zhicai.platform.identity.AccountRow">
+    SELECT <include refid="accountColumns"/> FROM account WHERE account_type=#{type} AND username=#{username}
+  </select>
+  <select id="findById" resultType="com.zhicai.platform.identity.AccountRow">
+    SELECT <include refid="accountColumns"/> FROM account WHERE id=#{id}
+  </select>
+  <select id="permissions" resultType="string">
+    SELECT DISTINCT p.code FROM account_role ar JOIN role r ON ar.role_id=r.id AND r.enabled=1
+    JOIN role_permission rp ON rp.role_id=r.id JOIN permission p ON p.code=rp.permission_code AND p.enabled=1
+    WHERE ar.account_id=#{accountId} ORDER BY p.code
+  </select>
+  <select id="warehouses" resultType="string">
+    SELECT CAST(w.id AS CHAR) FROM account_warehouse aw JOIN warehouse w ON aw.warehouse_id=w.id AND w.enabled=1
+    WHERE aw.account_id=#{accountId} ORDER BY w.id
+  </select>
+  <select id="roles" resultType="string">
+    SELECT CAST(r.id AS CHAR) FROM account_role ar JOIN role r ON ar.role_id=r.id AND r.enabled=1
+    WHERE ar.account_id=#{accountId} ORDER BY r.id
+  </select>
+</mapper>

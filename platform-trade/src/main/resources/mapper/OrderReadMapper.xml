@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.trade.OrderReadMapper">
+  <sql id="orderColumns">CAST(id AS CHAR) AS id,order_no AS orderNo,CAST(customer_id AS CHAR) AS customerId,
+    CAST(warehouse_id AS CHAR) AS warehouseId,state,address_snapshot_json AS addressSnapshotJson,
+    CAST(gross_minor AS CHAR) AS grossMinor,CAST(discount_minor AS CHAR) AS discountMinor,
+    CAST(shipping_minor AS CHAR) AS shippingMinor,CAST(payable_minor AS CHAR) AS payableMinor,
+    CAST(refunded_minor AS CHAR) AS refundedMinor,expires_at AS expiresAt,created_at AS createdAt,version</sql>
+  <select id="count" resultType="long">
+    SELECT COUNT(*) FROM sales_order WHERE customer_id=CAST(#{owner} AS UNSIGNED)
+    <if test="state != null">AND state=#{state}</if>
+  </select>
+  <select id="list" resultType="com.zhicai.platform.trade.OrderReadMapper$OrderRow">
+    SELECT <include refid="orderColumns"/> FROM sales_order
+    WHERE customer_id=CAST(#{owner} AS UNSIGNED)
+    <if test="state != null">AND state=#{state}</if>
+    ORDER BY created_at DESC,id DESC LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="find" resultType="com.zhicai.platform.trade.OrderReadMapper$OrderRow">
+    SELECT <include refid="orderColumns"/> FROM sales_order
+    WHERE customer_id=CAST(#{owner} AS UNSIGNED) AND id=CAST(#{id} AS UNSIGNED)
+  </select>
+  <select id="lines" resultType="com.zhicai.platform.trade.OrderReadMapper$LineRow">
+    SELECT CAST(order_id AS CHAR) AS orderId,CAST(id AS CHAR) AS id,line_no AS lineNo,
+      CAST(sku_id AS CHAR) AS skuId,product_name AS productName,specs_snapshot_json AS specsSnapshotJson,
+      quantity,CAST(unit_price_minor AS CHAR) AS unitPriceMinor,CAST(gross_minor AS CHAR) AS grossMinor,
+      CAST(discount_minor AS CHAR) AS discountMinor,CAST(payable_minor AS CHAR) AS payableMinor,
+      returned_quantity AS returnedQuantity,CAST(refunded_minor AS CHAR) AS refundedMinor
+    FROM sales_order_item WHERE order_id IN
+    <foreach collection="orderIds" item="orderId" open="(" separator="," close=")">CAST(#{orderId} AS UNSIGNED)</foreach>
+    ORDER BY order_id,line_no,id
+  </select>
+</mapper>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.trade.MockPaymentMapper">
+  <sql id="paymentColumns">
+    CAST(id AS CHAR) AS id, CAST(order_id AS CHAR) AS orderId, payment_no AS paymentNo,
+    channel, state, CAST(amount_minor AS CHAR) AS amountMinor, currency,
+    channel_transaction_id AS transactionId, created_at AS createdAt, version
+  </sql>
+  <select id="findOrderId" resultType="java.lang.String">
+    SELECT CAST(order_id AS CHAR) FROM payment WHERE id=CAST(#{paymentId} AS UNSIGNED)
+  </select>
+  <select id="lockOrder" resultType="com.zhicai.platform.trade.MockPaymentMapper$Order">
+    SELECT CAST(id AS CHAR) AS id, CAST(customer_id AS CHAR) AS owner, state,
+      CAST(payable_minor AS CHAR) AS payableMinor, CAST(coupon_id AS CHAR) AS couponId,
+      expires_at AS expiresAt, version
+    FROM sales_order WHERE id=CAST(#{orderId} AS UNSIGNED) FOR UPDATE
+  </select>
+  <select id="findBlockingPayments" resultType="com.zhicai.platform.trade.MockPaymentMapper$Payment">
+    SELECT <include refid="paymentColumns"/>
+    FROM payment WHERE order_id=CAST(#{orderId} AS UNSIGNED)
+      AND state IN ('CREATED','PROCESSING','SUCCEEDED') ORDER BY id LIMIT 2
+  </select>
+  <select id="lockPayment" resultType="com.zhicai.platform.trade.MockPaymentMapper$Payment">
+    SELECT <include refid="paymentColumns"/> FROM payment
+    WHERE id=CAST(#{paymentId} AS UNSIGNED) AND order_id=CAST(#{orderId} AS UNSIGNED) FOR UPDATE
+  </select>
+  <insert id="insertPayment" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO payment(order_id,payment_no,channel,state,amount_minor,currency,created_at,updated_at)
+    VALUES(CAST(#{orderId} AS UNSIGNED),#{paymentNo},'MOCK','PROCESSING',CAST(#{amountMinor} AS UNSIGNED),'CNY',#{createdAt},#{createdAt})
+  </insert>
+  <select id="findSuccessEvent" resultType="com.zhicai.platform.trade.MockPaymentMapper$Event">
+    SELECT CAST(payment_id AS CHAR) AS paymentId, payload_hash AS payloadHash
+    FROM payment_event WHERE channel='MOCK' AND event_id=#{eventId} AND event_type='PAYMENT_SUCCESS'
+  </select>
+  <insert id="insertSuccessEvent">
+    INSERT INTO payment_event(payment_id,channel,event_id,event_type,payload_hash,handled_at)
+    VALUES(CAST(#{paymentId} AS UNSIGNED),'MOCK',#{eventId},'PAYMENT_SUCCESS',#{payloadHash},#{now})
+  </insert>
+  <update id="markSucceeded">
+    UPDATE payment SET state='SUCCEEDED',channel_transaction_id=#{transactionId},updated_at=#{now},version=version+1
+    WHERE id=CAST(#{paymentId} AS UNSIGNED) AND order_id=CAST(#{orderId} AS UNSIGNED)
+      AND channel='MOCK' AND state IN ('CREATED','PROCESSING') AND version=#{version}
+  </update>
+  <update id="markPaid">
+    UPDATE sales_order SET state='PAID',paid_at=#{now},updated_at=#{now},version=version+1
+    WHERE id=CAST(#{orderId} AS UNSIGNED) AND state=#{state} AND state IN ('UNPAID','CLOSING')
+      AND paid_at IS NULL AND cancelled_at IS NULL AND version=#{version}
+  </update>
+</mapper>

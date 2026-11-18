@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.catalog.BrandWriteMapper">
+  <select id="find" resultType="com.zhicai.platform.catalog.CatalogModels$Brand">
+    SELECT CAST(id AS CHAR) id,name,enabled,version FROM brand WHERE id=CAST(#{id} AS UNSIGNED)
+  </select>
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO brand(name,enabled) VALUES(#{name},#{enabled})
+  </insert>
+  <update id="update">
+    UPDATE brand SET name=#{name},enabled=#{enabled},version=version+1,updated_at=UTC_TIMESTAMP(3)
+    WHERE id=CAST(#{id} AS UNSIGNED) AND version=#{version}
+  </update>
+</mapper>

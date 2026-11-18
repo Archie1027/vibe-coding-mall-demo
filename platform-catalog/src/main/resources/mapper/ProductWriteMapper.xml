@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhicai.platform.catalog.ProductWriteMapper">
+  <select id="lockProduct" resultType="string">SELECT CAST(id AS CHAR) FROM product WHERE id=CAST(#{id} AS UNSIGNED) FOR UPDATE</select>
+  <select id="categoryEnabled" resultType="boolean">SELECT enabled FROM category WHERE id=CAST(#{id} AS UNSIGNED) FOR SHARE</select>
+  <select id="brandEnabled" resultType="boolean">SELECT enabled FROM brand WHERE id=CAST(#{id} AS UNSIGNED) FOR SHARE</select>
+  <select id="publicAssets" resultType="string">
+    SELECT CAST(id AS CHAR) FROM asset WHERE visibility='PUBLIC' AND size_bytes &lt;= 5242880
+    AND content_type IN ('image/jpeg','image/png','image/webp') AND id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">CAST(#{id} AS UNSIGNED)</foreach>
+    ORDER BY id FOR SHARE
+  </select>
+  <insert id="insertProduct" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO product(name,category_id,brand_id,description,featured,state)
+    VALUES(#{input.name},CAST(#{input.categoryId} AS UNSIGNED),CAST(#{input.brandId} AS UNSIGNED),#{input.description},#{input.featured},'DRAFT')
+  </insert>
+  <update id="updateProduct">
+    UPDATE product SET name=#{input.name},category_id=CAST(#{input.categoryId} AS UNSIGNED),brand_id=CAST(#{input.brandId} AS UNSIGNED),
+      description=#{input.description},featured=#{input.featured},version=version+1,updated_at=UTC_TIMESTAMP(3)
+    WHERE id=CAST(#{id} AS UNSIGNED) AND version=#{version}
+  </update>
+  <update id="updateState">
+    UPDATE product SET state=#{state},version=version+1,updated_at=UTC_TIMESTAMP(3) WHERE id=CAST(#{id} AS UNSIGNED) AND version=#{version}
+  </update>
+  <delete id="deleteImages">DELETE FROM product_asset WHERE product_id=CAST(#{id} AS UNSIGNED)</delete>
+  <insert id="insertImage">INSERT INTO product_asset(product_id,asset_id,sort_order) VALUES(CAST(#{id} AS UNSIGNED),CAST(#{assetId} AS UNSIGNED),#{sort})</insert>
+  <sql id="skuColumns">SELECT CAST(id AS CHAR) id,CAST(product_id AS CHAR) productId,code,specs_json specsJson,CAST(price_minor AS CHAR) priceMinor,enabled,version FROM sku</sql>
+  <select id="findSku" resultType="com.zhicai.platform.catalog.CatalogMapper$SkuRow"><include refid="skuColumns"/> WHERE id=CAST(#{id} AS UNSIGNED)</select>
+  <select id="skus" resultType="com.zhicai.platform.catalog.CatalogMapper$SkuRow"><include refid="skuColumns"/> WHERE product_id=CAST(#{id} AS UNSIGNED) ORDER BY id</select>
+  <insert id="insertSku" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO sku(product_id,code,specs_json,specs_hash,price_minor,enabled)
+    VALUES(CAST(#{productId} AS UNSIGNED),#{input.code},#{specsJson},#{specsHash},CAST(#{input.priceMinor} AS UNSIGNED),#{input.enabled})
+  </insert>
+  <update id="updateSku">
+    UPDATE sku SET code=#{input.code},specs_json=#{specsJson},specs_hash=#{specsHash},price_minor=CAST(#{input.priceMinor} AS UNSIGNED),
+      enabled=#{input.enabled},version=version+1,updated_at=UTC_TIMESTAMP(3) WHERE id=CAST(#{id} AS UNSIGNED) AND version=#{version}
+  </update>
+</mapper>

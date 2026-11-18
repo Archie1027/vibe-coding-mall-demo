@@ -1,0 +1,11 @@
+import { createApp } from 'vue'
+import { ElButton } from 'element-plus/es/components/button/index.mjs'
+import { ElTag } from 'element-plus/es/components/tag/index.mjs'
+import 'element-plus/theme-chalk/base.css'
+import 'element-plus/theme-chalk/el-button.css'
+import 'element-plus/theme-chalk/el-tag.css'
+import App from './App.vue'
+import { router } from './router'
+import '@zhicai/shared/prototype.css'
+import '@zhicai/shared/app.css'
+createApp(App).use(router).component('ElButton',ElButton).component('ElTag',ElTag).mount('#app')
